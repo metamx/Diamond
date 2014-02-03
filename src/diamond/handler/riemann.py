@@ -104,6 +104,7 @@ class RiemannHandler(Handler):
             'time': metric.timestamp,
             'metric': float(metric.value),
             'ttl': metric.ttl,
+            'state': metric.state,
         }
 
     def _close(self):

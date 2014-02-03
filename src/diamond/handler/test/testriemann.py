@@ -41,5 +41,6 @@ class TestRiemannHandler(unittest.TestCase):
             'service': 'servers.cpu.total.idle',
             'time': 1234567,
             'metric': 0.0,
-            'ttl': None
+            'ttl': None,
+            'state': None,
         })
