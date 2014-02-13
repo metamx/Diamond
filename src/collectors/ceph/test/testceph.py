@@ -200,17 +200,17 @@ class TestCephCollectorPublish(CollectorTestCase):
         self.collector._publish_stats('prefix', {'a': 1})
         publish_mock.assert_called_with('prefix.a', 1,
                                         metric_type='GAUGE', instance=None,
-                                        precision=0)
+                                        precision=0, state=None)
 
     @patch.object(Collector, 'publish')
     def test_multiple(self, publish_mock):
         self.collector._publish_stats('prefix', {'a': 1, 'b': 2})
         publish_mock.assert_has_calls([call('prefix.a', 1,
                                             metric_type='GAUGE', instance=None,
-                                            precision=0),
+                                            precision=0, state=None),
                                        call('prefix.b', 2,
                                             metric_type='GAUGE', instance=None,
-                                            precision=0),
+                                            precision=0, state=None),
                                        ])
 
 if __name__ == "__main__":
