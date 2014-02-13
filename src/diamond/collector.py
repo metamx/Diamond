@@ -324,7 +324,7 @@ class Collector(object):
         raise NotImplementedError()
 
     def publish(self, name, value, raw_value=None, precision=0,
-                metric_type='GAUGE', instance=None):
+                metric_type='GAUGE', instance=None, state=None):
         """
         Publish a metric with the given name
         """
@@ -338,7 +338,7 @@ class Collector(object):
         # Create Metric
         metric = Metric(path, value, raw_value=raw_value, timestamp=None,
                         precision=precision, host=self.get_hostname(),
-                        metric_type=metric_type, ttl=ttl)
+                        metric_type=metric_type, ttl=ttl, state=state)
 
         # Publish Metric
         self.publish_metric(metric)
@@ -351,25 +351,25 @@ class Collector(object):
         for handler in self.handlers:
             handler._process(metric)
 
-    def publish_gauge(self, name, value, precision=0, instance=None):
+    def publish_gauge(self, name, value, precision=0, instance=None, state=None):
         return self.publish(name, value, precision=precision,
-                            metric_type='GAUGE', instance=instance)
+                            metric_type='GAUGE', instance=instance, state=state)
 
     def publish_counter(self, name, value, precision=0, max_value=0,
                         time_delta=True, interval=None, allow_negative=False,
-                        instance=None):
+                        instance=None, state=None):
         raw_value = value
         value = self.derivative(name, value, max_value=max_value,
                                 time_delta=time_delta, interval=interval,
                                 allow_negative=allow_negative,
-                                instance=instance)
+                                instance=instance, state=state)
         return self.publish(name, value, raw_value=raw_value,
                             precision=precision, metric_type='COUNTER',
-                            instance=instance)
+                            instance=instance, state=state)
 
     def derivative(self, name, new, max_value=0,
                    time_delta=True, interval=None,
-                   allow_negative=False, instance=None):
+                   allow_negative=False, instance=None, state=None):
         """
         Calculate the derivative of the metric.
         """
