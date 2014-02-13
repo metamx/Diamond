@@ -42,5 +42,5 @@ class TestRiemannHandler(unittest.TestCase):
             'time': 1234567,
             'metric': 0.0,
             'ttl': None,
-            'state': None,
+            'state': 'none',
         })
