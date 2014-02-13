@@ -98,6 +98,9 @@ class RiemannHandler(Handler):
             metric.getMetricPath()
         )
 
+        if (metric.state == None):
+            metric.state = 'none'
+
         return {
             'host': metric.host,
             'service': path,
