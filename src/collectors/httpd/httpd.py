@@ -25,7 +25,13 @@ class HttpdCollector(diamond.collector.Collector):
             self.config['urls'].append(self.config['url'])
 
         self.urls = {}
+        if isinstance(self.config['urls'], basestring):
+            self.config['urls'] = self.config['urls'].split(',')
+
         for url in self.config['urls']:
+            # Handle the case where there is a trailing comman on the urls list
+            if len(url) == 0:
+                continue
             if ' ' in url:
                 parts = url.split(' ')
                 self.urls[parts[0]] = parts[1]
@@ -109,16 +115,15 @@ class HttpdCollector(diamond.collector.Collector):
                             for sb_kv in self._parseScoreboard(v):
                                 self._publish(nickname, sb_kv[0], sb_kv[1])
                         else:
-                            self._publish(nickname,k,v)
+                            self._publish(nickname, k, v)
 
     def _publish(self, nickname, key, value):
 
-        metrics = ['ReqPerSec', 'BytesPerSec', 'BytesPerReq',
-                'BusyWorkers', 'Total Accesses', 'IdleWorkers',
-                'StartingWorkers', 'ReadingWorkers', 'WritingWorkers',
-                'KeepaliveWorkers', 'DnsWorkers', 'ClosingWorkers',
-                'LoggingWorkers', 'FinishingWorkers',
-                'CleanupWorkers']
+        metrics = ['ReqPerSec', 'BytesPerSec', 'BytesPerReq', 'BusyWorkers',
+                   'Total Accesses', 'IdleWorkers', 'StartingWorkers',
+                   'ReadingWorkers', 'WritingWorkers', 'KeepaliveWorkers',
+                   'DnsWorkers', 'ClosingWorkers', 'LoggingWorkers',
+                   'FinishingWorkers', 'CleanupWorkers']
 
         if key in metrics:
             # Get Metric Name
@@ -138,14 +143,14 @@ class HttpdCollector(diamond.collector.Collector):
 
         ret = []
 
-        ret.append( ('IdleWorkers',sb.count('_')) )
-        ret.append( ('ReadingWorkers',sb.count('R')) )
-        ret.append( ('WritingWorkers',sb.count('W')) )
-        ret.append( ('KeepaliveWorkers',sb.count('K')) )
-        ret.append( ('DnsWorkers',sb.count('D')) )
-        ret.append( ('ClosingWorkers',sb.count('C')) )
-        ret.append( ('LoggingWorkers',sb.count('L')) )
-        ret.append( ('FinishingWorkers',sb.count('G')) )
-        ret.append( ('CleanupWorkers',sb.count('I')) )
+        ret.append(('IdleWorkers', sb.count('_')))
+        ret.append(('ReadingWorkers', sb.count('R')))
+        ret.append(('WritingWorkers', sb.count('W')))
+        ret.append(('KeepaliveWorkers', sb.count('K')))
+        ret.append(('DnsWorkers', sb.count('D')))
+        ret.append(('ClosingWorkers', sb.count('C')))
+        ret.append(('LoggingWorkers', sb.count('L')))
+        ret.append(('FinishingWorkers', sb.count('G')))
+        ret.append(('CleanupWorkers', sb.count('I')))
 
         return ret

@@ -13,6 +13,7 @@ values are ignored.
 import diamond.collector
 from diamond.collector import str_to_bool
 import re
+import zlib
 
 try:
     import pymongo
@@ -28,6 +29,7 @@ except ImportError:
 
 
 class MongoDBCollector(diamond.collector.Collector):
+    MAX_CRC32 = 4294967295
 
     def __init__(self, *args, **kwargs):
         self.__totals = {}
@@ -47,11 +49,17 @@ class MongoDBCollector(diamond.collector.Collector):
             'ignore_collections': 'A regex of which collections to ignore.'
                                   ' MapReduce temporary collections (tmp.mr.*)'
                                   ' are ignored by default.',
+            'collection_sample_rate': 'Only send stats for a consistent subset '
+            'of collections. This is applied after collections are ignored via'
+            ' ignore_collections Sampling uses crc32 so it is consistent across'
+            ' replicas. Value between 0 and 1. Default is 1',
             'network_timeout': 'Timeout for mongodb connection (in seconds).'
                                ' There is no timeout by default.',
             'simple': 'Only collect the same metrics as mongostat.',
             'translate_collections': 'Translate dot (.) to underscores (_)'
-                                     ' in collection names.'
+                                     ' in collection names.',
+            'ssl': 'True to enable SSL connections to the MongoDB server.'
+                    ' Default is False'
         })
         return config_help
 
@@ -69,7 +77,9 @@ class MongoDBCollector(diamond.collector.Collector):
             'ignore_collections': '^tmp\.mr\.',
             'network_timeout': None,
             'simple': 'False',
-            'translate_collections': 'False'
+            'translate_collections': 'False',
+            'collection_sample_rate': 1,
+            'ssl': False
         })
         return config
 
@@ -88,6 +98,11 @@ class MongoDBCollector(diamond.collector.Collector):
         if self.config['network_timeout']:
             self.config['network_timeout'] = int(
                 self.config['network_timeout'])
+
+        # convert collection_sample_rate to float
+        if self.config['collection_sample_rate']:
+            self.config['collection_sample_rate'] = float(
+                self.config['collection_sample_rate'])
 
         # use auth if given
         if 'user' in self.config:
@@ -115,16 +130,22 @@ class MongoDBCollector(diamond.collector.Collector):
                     base_prefix = [alias]
 
             try:
+                # Ensure that the SSL option is a boolean.
+                if type(self.config['ssl']) is str:
+                    self.config['ssl'] = str_to_bool(self.config['ssl'])
+
                 if ReadPreference is None:
                     conn = pymongo.Connection(
                         host,
                         network_timeout=self.config['network_timeout'],
+                        ssl=self.config['ssl'],
                         slave_okay=True
                     )
                 else:
                     conn = pymongo.Connection(
                         host,
                         network_timeout=self.config['network_timeout'],
+                        ssl=self.config['ssl'],
                         read_preference=ReadPreference.SECONDARY,
                     )
             except Exception, e:
@@ -148,6 +169,8 @@ class MongoDBCollector(diamond.collector.Collector):
             self._publish_dict_with_prefix(data, base_prefix)
             db_name_filter = re.compile(self.config['databases'])
             ignored_collections = re.compile(self.config['ignore_collections'])
+            sample_threshold = self.MAX_CRC32 * self.config[
+                'collection_sample_rate']
             for db_name in conn.database_names():
                 if not db_name_filter.search(db_name):
                     continue
@@ -157,6 +180,11 @@ class MongoDBCollector(diamond.collector.Collector):
                 for collection_name in conn[db_name].collection_names():
                     if ignored_collections.search(collection_name):
                         continue
+                    if (self.config['collection_sample_rate'] < 1 and (
+                            zlib.crc32(collection_name) & 0xffffffff
+                            ) > sample_threshold):
+                        continue
+
                     collection_stats = conn[db_name].command('collstats',
                                                              collection_name)
                     if str_to_bool(self.config['translate_collections']):

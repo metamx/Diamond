@@ -19,13 +19,6 @@ Enable this handler
 
 #### Notes
 
-If your system has both
-[python-statsd](http://pypi.python.org/pypi/python-statsd/)
-and [statsd](http://pypi.python.org/pypi/statsd/) installed, you might
-experience failues after python updates or pip updates that change the order of
-importing. We recommend that you only have
-[python-statsd](http://pypi.python.org/pypi/python-statsd/)
-installed on your system if you are using this handler.
 
 The handler file is named an odd stats_d.py because of an import issue with
 having the python library called statsd and this handler's module being called
@@ -115,11 +108,18 @@ class StatsdHandler(Handler):
             # Split the path into a prefix and a name
             # to work with the statsd module's view of the world.
             # It will get re-joined by the python-statsd module.
+            #
+            # For the statsd module, you specify prefix in the constructor
+            # so we just use the full metric path.
             (prefix, name) = metric.path.rsplit(".", 1)
             logging.debug("Sending %s %s|g", name, metric.value)
 
             if metric.metric_type == 'GAUGE':
-                statsd.Gauge(prefix, self.connection).send(name, metric.value)
+                if hasattr(statsd, 'StatsClient'):
+                    self.connection.gauge(metric.path, metric.value)
+                else:
+                    statsd.Gauge(prefix, self.connection).send(
+                        name, metric.value)
             else:
                 # To send a counter, we need to just send the delta
                 # but without any time delta changes
@@ -127,7 +127,12 @@ class StatsdHandler(Handler):
                 if metric.path in self.old_values:
                     value = value - self.old_values[metric.path]
                 self.old_values[metric.path] = metric.raw_value
-                statsd.Counter(prefix, self.connection).increment(name, value)
+
+                if hasattr(statsd, 'StatsClient'):
+                    self.connection.incr(metric.path, value)
+                else:
+                    statsd.Counter(prefix, self.connection).increment(
+                        name, value)
 
         self.metrics = []
 
@@ -141,9 +146,16 @@ class StatsdHandler(Handler):
         """
         if not statsd:
             return
-        # Create socket
-        self.connection = statsd.Connection(
-            host=self.host,
-            port=self.port,
-            sample_rate=1.0
-        )
+
+        if hasattr(statsd, 'StatsClient'):
+            self.connection = statsd.StatsClient(
+                host=self.host,
+                port=self.port
+            )
+        else:
+            # Create socket
+            self.connection = statsd.Connection(
+                host=self.host,
+                port=self.port,
+                sample_rate=1.0
+            )
